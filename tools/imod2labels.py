@@ -13,8 +13,8 @@ Requirements:
 Example
 -------
 import imod2labels
-infname = 'IMOD_model.mod'
-imod2labels.load_model(infname)
+infname_mod = 'IMOD_model.mod'
+imod2labels.convert_model(infname_mod, path_img = '/path/to/image/files/')
 """
 
 import os
@@ -111,7 +111,7 @@ def get_image_size(image_path):
     with Image.open(image_path) as img:
         return img.size
 
-def generate_json(df, imgfile, imgheight = None, imgwidth = None, imgformat = 'tif'):
+def generate_json_anylabeling(df, imgfile, imgheight = None, imgwidth = None, imgformat = 'tif'):
     """
     Generate json file from dataframe.
     Here the json file follows the format of the Anylabeling tool.
@@ -172,7 +172,7 @@ def generate_json(df, imgfile, imgheight = None, imgwidth = None, imgformat = 't
         json.dump(json_dict, f, indent = 4)
     return outfname_json
 
-def convert_model(infname_mod, inpath_img, format_img = 'tif'):
+def convert_model(infname_mod, path_img, format_img = 'tif'):
     """
     Converts IMOD model (.mod) to to a json file with labels and points.
 
@@ -180,7 +180,7 @@ def convert_model(infname_mod, inpath_img, format_img = 'tif'):
     ----------
     infname : str
         Path to IMOD model file.
-    inpath_img : str
+    path_img : str
         Path to image files. Used to extract metadata needed and to add information to json.
     format_img : str
         Format of image files. Default: 'tif'.
@@ -194,14 +194,14 @@ def convert_model(infname_mod, inpath_img, format_img = 'tif'):
     # get sorted z-coordinates
     z_list = sorted(df['z'].unique())
 
-    # get image metadata such as imgheight, imgwidth and name of images in inpath_img
-    img_files = [f for f in os.listdir(inpath_img) if f.endswith('.' + format_img.lower())]
+    # get image metadata such as imgheight, imgwidth and name of images in path_img
+    img_files = [f for f in os.listdir(path_img) if f.endswith('.' + format_img.lower())]
     # sort files by z-coordinate
     img_files = sorted(img_files, key = lambda x: int(x.split('_')[1].split('.')[0].replace('z', '')))
     # extract z-coordinate from filename as integer
     z_img_list = [int(f.split('_')[1].split('.')[0].replace('z', '')) for f in img_files]
     # get image height and width of first image and assume all images have same size
-    imgwidth, imgheight = get_image_size(os.path.join(inpath_img, img_files[0]))
+    imgwidth, imgheight = get_image_size(os.path.join(path_img, img_files[0]))
 
     # check if z-coordinates of model and images match
     assert len(z_list) == len(z_img_list), 'Error: Number of z-coordinates in model and images in image folder do not match.'
@@ -211,7 +211,7 @@ def convert_model(infname_mod, inpath_img, format_img = 'tif'):
         df_z = df[df['z'] == z].copy()
         
         # generate json file
-        outfname_json = generate_json(df_z, os.path.join(inpath_img,img_files[i]), imgheight, imgwidth)
+        outfname_json = generate_json_anylabeling(df_z, os.path.join(path_img,img_files[i]), imgheight, imgwidth)
         
         # validate json file
         valid = validate_json(outfname_json, 'json_schema_anylabeling.json')
