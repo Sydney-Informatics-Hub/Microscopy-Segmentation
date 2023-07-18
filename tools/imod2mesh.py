@@ -2,7 +2,7 @@
 Convert IMOD model to suitable mesh formats.
 
 Mesh output formats supported:
-OBJ, STL, binary PLY, OFF, GLB, COLLADA, JSON, DICT
+OBJ, VRML/VRML2, STL, PLY, OFF, GLB, COLLADA, JSON, DICT
 
 Requirements:
 ------------
@@ -26,8 +26,7 @@ import trimesh
 
 def convert_mesh(infname, 
      output_format = 'OBJ',
-     args_imod2obj = '',
-     return_mesh = True):
+     args_imod2obj = ''):
     """
     Reads in IMOD model (.mod) or other mesh models and converts to desired mesh format.
 
@@ -37,6 +36,7 @@ def convert_mesh(infname,
         Path to IMOD model file (.mod) or mesh file.
     output_format : str 
         'OBJ' (.obj), 
+        'VRML' or 'VRML2' (.wmt),
         'STL' (.stl), 
         'PLY' (.ply), 
         'OFF' (.off), 
@@ -47,8 +47,6 @@ def convert_mesh(infname,
     args_imod2obj : str
         Additional arguments for imod2obj command. See IMOD documentation for details.
         (https://bio3d.colorado.edu/imod/doc/man/imod2obj.html)
-    return_mesh : bool
-        If True, returns mesh as trimesh object. If False, returns None.
 
     Returns
     -------
@@ -57,6 +55,8 @@ def convert_mesh(infname,
 
     if output_format == 'OBJ':
         outfname = infname.replace('.mod', '.obj')
+    elif (output_format == 'VRML') | (output_format == 'VRML2'):
+        outfname = infname.replace('.mod', '.wrl')
     elif output_format == 'STL':
         outfname = infname.replace('.mod', '.stl')
     elif output_format == 'PLY':
@@ -75,6 +75,28 @@ def convert_mesh(infname,
         print(f'Output format {output_format} not supported. Please choose from: OBJ, STL, PLY, OFF, GLTF, COLLADA, JSON, DICT')
         return None
 
+    if output_format == 'VRML':
+        imod_cmd = f'imod2vrml {infname} {outfname}'
+        try:
+            print('Converting IMOD model to VRML mesh...')
+            subprocess.run([imod_cmd], shell = True, check = True)
+        except subprocess.CalledProcessError:
+            print('Error with imod2vrml command:' + imod_cmd)
+            return None
+        print('VRML mesh saved as ' + outfname)
+        return None
+    
+    if output_format == 'VRML2':
+        imod_cmd = f'imod2vrml2 -a {infname} {outfname}'
+        try:
+            print('Converting IMOD model to VRML2 mesh...')
+            subprocess.run([imod_cmd], shell = True, check = True)
+        except subprocess.CalledProcessError:
+            print('Error with imod2vrml2 command:' + imod_cmd)
+            return None
+        print('VRML2 mesh saved as ' + outfname)
+        return None
+    
     # if IMOD model, need to convert first to obj
     if infname.endswith('.mod'):
         # create temporary file to save obj file
@@ -98,8 +120,6 @@ def convert_mesh(infname,
     # save mesh in output_format
     if output_format != 'OBJ':
         mesh.export(outfname)#, file_type = output_format.lower())
+    print('Mesh saved as ' + outfname)
 
-    if return_mesh:
-        return mesh
-    else:
-        return None
+    return None
