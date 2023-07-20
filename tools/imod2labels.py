@@ -14,10 +14,12 @@ Example
 -------
 import imod2labels
 infname_mod = 'IMOD_model.mod'
-imod2labels.convert_model(infname_mod, path_img = '/path/to/image/files/')
+path_img = '/path/to/image/files/'
+fnames_json = imod2labels.convert_to_anylabeling(infname_mod, path_img, format_img = 'png')
 """
 
 import os
+import re
 import pandas as pd
 import subprocess
 from PIL import Image
@@ -60,7 +62,7 @@ def validate_json(json_data, json_schema):
     return True
 
 
-def load_model(infname):
+def load_imod_model(infname):
     """
     Converts IMOD model (.mod) to pandas dataframe
 
@@ -111,10 +113,15 @@ def get_image_size(image_path):
     with Image.open(image_path) as img:
         return img.size
 
+def extract_numeric_characters(string):
+    numeric_chars = re.findall(r'\d+', string)
+    return ''.join(numeric_chars)
+
 def generate_json_anylabeling(df, imgfile, imgheight = None, imgwidth = None, imgformat = 'tif'):
     """
     Generate json file from dataframe.
     Here the json file follows the format of the Anylabeling tool.
+    The json file is saved in the same folder as the image file.
 
     Parameters
     ----------
@@ -172,9 +179,11 @@ def generate_json_anylabeling(df, imgfile, imgheight = None, imgwidth = None, im
         json.dump(json_dict, f, indent = 4)
     return outfname_json
 
-def convert_model(infname_mod, path_img, format_img = 'tif'):
+def convert_to_anylabeling(infname_mod, path_img, format_img = 'tif'):
     """
-    Converts IMOD model (.mod) to to a json file with labels and points.
+    Converts IMOD model (.mod) to to a json file with labels and points according to AnyLabeling format.
+    see: https://pypi.org/project/anylabeling/
+    For each image a json file is created and stored in the same folder as the image file.
 
     Parameters
     ----------
@@ -182,24 +191,25 @@ def convert_model(infname_mod, path_img, format_img = 'tif'):
         Path to IMOD model file.
     path_img : str
         Path to image files. Used to extract metadata needed and to add information to json.
+        Image files must have the same name as the z-coordinate at the end after '_'.
     format_img : str
         Format of image files. Default: 'tif'.
     
     Returns
     -------
-    json : json file
+    outfnames : list of json filenames that were created.
     """
     # First load model into pandas dataframe
-    df = load_model(infname_mod)
+    df = load_imod_model(infname_mod)
     # get sorted z-coordinates
     z_list = sorted(df['z'].unique())
 
     # get image metadata such as imgheight, imgwidth and name of images in path_img
     img_files = [f for f in os.listdir(path_img) if f.endswith('.' + format_img.lower())]
-    # sort files by z-coordinate
-    img_files = sorted(img_files, key = lambda x: int(x.split('_')[1].split('.')[0].replace('z', '')))
+    # sort files by z-coordinate by extracting only numeric characters from end of filename
+    img_files = sorted(img_files, key = lambda x: int(extract_numeric_characters(x.split('_')[-1].split('.')[0])))
     # extract z-coordinate from filename as integer
-    z_img_list = [int(f.split('_')[1].split('.')[0].replace('z', '')) for f in img_files]
+    z_img_list = [int(extract_numeric_characters(f.split('_')[-1].split('.')[0])) for f in img_files]
     # get image height and width of first image and assume all images have same size
     imgwidth, imgheight = get_image_size(os.path.join(path_img, img_files[0]))
 
@@ -207,11 +217,12 @@ def convert_model(infname_mod, path_img, format_img = 'tif'):
     assert len(z_list) == len(z_img_list), 'Error: Number of z-coordinates in model and images in image folder do not match.'
 
     # generate json file for each z
+    outfnames = []
     for i, z in enumerate(z_list):
         df_z = df[df['z'] == z].copy()
         
         # generate json file
-        outfname_json = generate_json_anylabeling(df_z, os.path.join(path_img,img_files[i]), imgheight, imgwidth)
+        outfname_json = generate_json_anylabeling(df_z, os.path.join(path_img,img_files[i]), imgheight, imgwidth, imgformat = format_img)
         
         # validate json file
         valid = validate_json(outfname_json, 'json_schema_anylabeling.json')
@@ -219,3 +230,6 @@ def convert_model(infname_mod, path_img, format_img = 'tif'):
             print(f'Created Json file {outfname_json}')
         else:
             print(f'Error: Json file {outfname_json} is not valid.')
+        outfnames.append(outfname_json)
+
+    return outfnames
