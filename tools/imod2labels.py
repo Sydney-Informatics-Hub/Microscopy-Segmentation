@@ -1,5 +1,11 @@
 """
-Convert IMOD model (.mod) to to a json file with labels and points.
+Convert IMOD model (.mod) to a json file with labels for polygon and points segmentation.
+
+Supported json formats:
+Anylabeling: https://pypi.org/project/anylabeling/
+YOLO
+SAM
+
 Requirements:
 ------------
 - IMOD installed (tested with IMOD 4.12), see for installation instructions:
@@ -9,13 +15,15 @@ Requirements:
 - json
 - PIL
 
-
 Example
 -------
 import imod2labels
 infname_mod = 'IMOD_model.mod'
 path_img = '/path/to/image/files/'
 fnames_json = imod2labels.convert_to_anylabeling(infname_mod, path_img, format_img = 'png')
+
+
+Author: Sebastian Haan, The University of Sydney, 2023
 """
 
 import os
@@ -62,7 +70,7 @@ def validate_json(json_data, json_schema):
     return True
 
 
-def load_imod_model(infname):
+def load_imod_model(infname, delete_temp_modeltxt = True):
     """
     Converts IMOD model (.mod) to pandas dataframe
 
@@ -70,6 +78,8 @@ def load_imod_model(infname):
     ----------
     infname : str
         Path to IMOD model file.
+    delete_temp_modeltxt : bool
+        If True, temporary file created by model2point is deleted after loading into pandas dataframe. Default: False.
 
     Returns
     -------
@@ -98,7 +108,8 @@ def load_imod_model(infname):
     # remove duplicates
     df = df.drop_duplicates()
     # remove temporary file
-    os.remove(outfname_temp)
+    if delete_temp_modeltxt:
+        os.remove(outfname_temp)
     return df
 
 def get_image_size(image_path):
@@ -114,6 +125,9 @@ def get_image_size(image_path):
         return img.size
 
 def extract_numeric_characters(string):
+    """
+    Extracts numeric characters from string.
+    """
     numeric_chars = re.findall(r'\d+', string)
     return ''.join(numeric_chars)
 
@@ -144,34 +158,43 @@ def generate_json_anylabeling(df, imgfile, imgheight = None, imgwidth = None, im
     if (imgheight is None) or (imgwidth is None):
         imgwidth, imgheight = get_image_size(imgfile)
 
+    # get name of image file without path
+    imgfile_name = os.path.basename(imgfile)
+
     shapes = []
     # get unique objectIds
     objectIds = df['objectId'].unique()
     for objectId in objectIds:
         # get all points for this objectId
         df_obj = df[df['objectId'] == objectId].copy()
-        # get all points for this objectId
-        points = df_obj[['x', 'y']].values.tolist()
-        # create shape
-        shape = {
-            'label' : str(objectId), 
-            "text" : "", 
-            'points' : points,
-            "group_id": "null",
-            "shape_type": "polygon",
-            "flags": {}}
-        # add shape to shapes
-        shapes.append(shape)
+        # loop over all contourIds
+        contourIds = df_obj['contourId'].unique()
+        for contourId in contourIds:
+            # get all points for this contourId
+            points = df_obj[df_obj['contourId'] == contourId][['x', 'y']].values.tolist()
+            # reverse y coordinates with respect to image height
+            points = [[p[0], round(imgheight - p[1],2)] for p in points]
+            # create shape
+            shape = {
+                'label' : str(objectId), 
+                "text" : "", 
+                'points' : points,
+                "group_id": None,
+                "shape_type": "polygon",
+                "flags": {}}
+            # add shape to shapes
+            shapes.append(shape)
 
     # create json dictionary
     json_dict = {
          "version": "0.3.3",
          "flags": {},
         "shapes": shapes,
-        "imagePath": imgfile,
-        "imageData": "null",
+        "imagePath": imgfile_name,
+        "imageData": None,
         'imageHeight' : imgheight, 
-        'imageWidth' : imgwidth
+        'imageWidth' : imgwidth,
+        "text" : "",
         }
     # save json file
     outfname_json = imgfile.replace('.' + imgformat.lower(), '.json')
