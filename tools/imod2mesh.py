@@ -1,34 +1,50 @@
 """
 Convert IMOD model to suitable mesh formats.
+The generated mesh file is saved in the same directory as the input file
+and can be used for 3D visualization in e.g. Meshlab, Blender, etc.
 
-Mesh output formats supported:
-OBJ, VRML/VRML2, STL, PLY, OFF, GLB, COLLADA, JSON, DICT
+The following mesh output formats are supported:
+OBJ, VRML/VRML2, STL, PLY, OFF, GLB, COLLADA
 
-Requirements:
-------------
-- IMOD installed (tested with IMOD 4.12), see for installation instructions:
+Usage:
+python imod2mesh.py -i IMOD_model.mod -o OBJ
+
+Required Arguments:
+-i, --input: Filename for IMOD model file
+-o, --output_format: Output format, default is OBJ
+
+Optional Arguments:
+-a, --args_imod2obj: Additional arguments for imod2obj command. See IMOD documentation for details.
+
+Installation Requirements:
+-------------------------
+- IMOD (tested with IMOD 4.12), see for installation instructions:
     https://bio3d.colorado.edu/imod/download.html
 - Python 3.8+
 - trimesh (pip install trimesh[easy])
 - pycollada (For COLLADA export)
 
 
-Example
--------
+Python Example
+--------------
 import imod2mesh
 infname = 'IMOD_model.mod'
-mesh = imod2mesh.convert_mesh(infname)
+mesh = imod2mesh.convert_mesh(infname, output_format = 'STL')
+
+
+Author: Sebastian Haan, The University of Sydney, 2023
 """
 
 import os
+import argparse
 import subprocess
 import trimesh
 
-def convert_mesh(infname, 
+def convert_to_mesh(infname, 
      output_format = 'OBJ',
      args_imod2obj = ''):
     """
-    Reads in IMOD model (.mod) or other mesh models and converts to desired mesh format.
+    Reads IMOD model (.mod) or other mesh models and converts to desired mesh format.
 
     Parameters
     ----------
@@ -41,9 +57,7 @@ def convert_mesh(infname,
         'PLY' (.ply), 
         'OFF' (.off), 
         'GLB' (.glb), 
-        'COLLADA' (.dae),
-        'JSON' (.json),
-        'DICT' (.dict)
+        'COLLADA' (.dae)
     args_imod2obj : str
         Additional arguments for imod2obj command. See IMOD documentation for details.
         (https://bio3d.colorado.edu/imod/doc/man/imod2obj.html)
@@ -72,10 +86,11 @@ def convert_mesh(infname,
     elif output_format == 'DICT':
         outfname = infname.replace('.mod', '.dict')
     else:
-        print(f'Output format {output_format} not supported. Please choose from: OBJ, STL, PLY, OFF, GLTF, COLLADA, JSON, DICT')
+        print(f'Output format {output_format} not supported.\
+        Please choose from: OBJ, VRML, VRML2, STL, PLY, OFF, GLB, COLLADA, JSON, DICT')
         return None
 
-    if output_format == 'VRML':
+    if (output_format == 'VRML') & (infname.endswith('.mod')):
         imod_cmd = f'imod2vrml {infname} {outfname}'
         try:
             print('Converting IMOD model to VRML mesh...')
@@ -86,7 +101,7 @@ def convert_mesh(infname,
         print('VRML mesh saved as ' + outfname)
         return None
     
-    if output_format == 'VRML2':
+    if (output_format == 'VRML2') & (infname.endswith('.mod')):
         imod_cmd = f'imod2vrml2 -a {infname} {outfname}'
         try:
             print('Converting IMOD model to VRML2 mesh...')
@@ -113,7 +128,6 @@ def convert_mesh(infname,
 
         # read in obj file as trimesh
         mesh = trimesh.load(outfname_obj)
-
     else:
         mesh = trimesh.load(infname)
 
@@ -121,5 +135,17 @@ def convert_mesh(infname,
     if output_format != 'OBJ':
         mesh.export(outfname)#, file_type = output_format.lower())
     print('Mesh saved as ' + outfname)
-
     return None
+
+def main():
+    """ Main Function """
+    parser = argparse.ArgumentParser(description='Convert IMOD model to suitable mesh formats.')
+    parser.add_argument('-i', '--input', help='Input IMOD model file (.mod) or mesh file', required=True)
+    parser.add_argument('-o', '--output_format', help='Output format', default='OBJ', choices=['OBJ', 'VRML', 'VRML2', 'STL', 'PLY', 'OFF', 'GLB', 'COLLADA'])
+    parser.add_argument('-a', '--args_imod2obj', help='Additional arguments for imod2obj command', default='')
+    args = parser.parse_args()
+
+    convert_to_mesh(args.input, args.output_format, args.args_imod2obj)
+
+if __name__ == '__main__':
+    main()
