@@ -19,7 +19,7 @@ SAM
 
 Requirements:
 ------------
-- IMOD (tested with IMOD 4.12), see for installation instructions:
+- IMOD e'(tested with IMOD 4.12), see for installation instructions:
     https://bio3d.colorado.edu/imod/download.html
 - Python 3.8+
 - pandas
