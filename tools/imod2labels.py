@@ -1,22 +1,33 @@
 """
 Convert IMOD model (.mod) to a json file with labels for polygon and points segmentation.
+For each image a json file is created and stored in the same folder as the image file.
 
-Supported json formats:
+Usage:
+python imod2labels.py -i IMOD_model.mod -p /path/to/image/files/ -f png
+
+Required Arguments:
+-i, --input: Filename for IMOD model file
+-p, --path_img: Path to image files
+-f, --format_img: Format of image files, default is png
+
+Note: image files names must include the z-coordinate number at the end after '_'.
+
+Supported JSON segmentation formats:
 Anylabeling: https://pypi.org/project/anylabeling/
 YOLO
 SAM
 
 Requirements:
 ------------
-- IMOD installed (tested with IMOD 4.12), see for installation instructions:
+- IMOD (tested with IMOD 4.12), see for installation instructions:
     https://bio3d.colorado.edu/imod/download.html
 - Python 3.8+
 - pandas
 - json
 - PIL
 
-Example
--------
+Example Python
+--------------------
 import imod2labels
 infname_mod = 'IMOD_model.mod'
 path_img = '/path/to/image/files/'
@@ -28,6 +39,7 @@ Author: Sebastian Haan, The University of Sydney, 2023
 
 import os
 import re
+import argparse
 import pandas as pd
 import subprocess
 from PIL import Image
@@ -202,7 +214,7 @@ def generate_json_anylabeling(df, imgfile, imgheight = None, imgwidth = None, im
         json.dump(json_dict, f, indent = 4)
     return outfname_json
 
-def convert_to_anylabeling(infname_mod, path_img, format_img = 'tif'):
+def convert_to_anylabeling(infname_mod, path_img, format_img = 'png'):
     """
     Converts IMOD model (.mod) to to a json file with labels and points according to AnyLabeling format.
     see: https://pypi.org/project/anylabeling/
@@ -256,3 +268,19 @@ def convert_to_anylabeling(infname_mod, path_img, format_img = 'tif'):
         outfnames.append(outfname_json)
 
     return outfnames
+
+def main():
+    """
+    Main function.
+    """
+    parser = argparse.ArgumentParser(description='Convert IMOD model (.mod) to a json file with labels for polygon and points segmentation.')
+    parser.add_argument('-i', '--input', help='Filename for IMOD model file', required=True)
+    parser.add_argument('-p', '--path_img', help='Path to image files', required=True)
+    parser.add_argument('-f', '--format_img', help='Format of image files', default='png', choices=['tif', 'tiff', 'png', 'jpg'])
+    args = parser.parse_args()
+
+    # convert to anylabeling format
+    fnames_json = convert_to_anylabeling(args.input, args.path_img, format_img = args.format_img)
+
+if __name__ == '__main__':
+    main()
