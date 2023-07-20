@@ -9,19 +9,18 @@ Requirements:
 - pandas
 
 
-
 Example
 -------
 import labels2imod
 inpath = '/path/to/json/files/'
-labels2imod.convert_json(inpath)
+labels2imod.convert(inpath)
 """
 
 import os
 import pandas as pd
 import subprocess
 
-def convert_json(inpath, outfname_mod = None, save_points = True):
+def convert(inpath, outfname_mod = None, save_points = True):
     """
     Reads in all json files within folder, converts the polygons and object labels into a list of points and exports as imod .mod model
     The points are saved in a text file with the following columns: ['objectId', 'contourId', 'x', 'y', 'z'].
