@@ -29,7 +29,7 @@ Python Example
 --------------
 import imod2mesh
 infname = 'IMOD_model.mod'
-mesh = imod2mesh.convert_mesh(infname, output_format = 'STL')
+mesh = imod2mesh.convert_to_mesh(infname, output_format = 'STL')
 
 
 Author: Sebastian Haan, The University of Sydney, 2023
