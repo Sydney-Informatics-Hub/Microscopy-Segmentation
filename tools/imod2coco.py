@@ -293,8 +293,6 @@ def validate_coco_json(file_path):
             assert key in category, f"'{key}' not in a category."
 
 
-
-
 def convert_to_coco(infname_mod, path_img, format_img = 'png', outfname_coco = None):
     """
     Converts IMOD model (.mod) to to a COCO annotation json file for segmentation.
@@ -310,8 +308,6 @@ def convert_to_coco(infname_mod, path_img, format_img = 'png', outfname_coco = N
         Format of image files. Default: 'tif'.
     outfname_coco : str
         Path to output json file. If None, a json file with the same name as the model file will be created.
-
-
     """
     # First load model into pandas dataframe
     df = load_imod_model(infname_mod)
@@ -330,15 +326,11 @@ def convert_to_coco(infname_mod, path_img, format_img = 'png', outfname_coco = N
     # check if z-coordinates of model and images match
     assert len(z_list) == len(z_img_list), 'Error: Number of z-coordinates in model and images in image folder do not match.'
 
+    coco_dict = None
+    # loop over all z-coordinates and add image and annotations to coco_dict
     for i, z in enumerate(z_list):
         df_z = df[df['z'] == z].copy()
-        
-        # generate coco dict
-        if i == 0:
-            coco_dict = generate_coco_dict(df_z, os.path.join(path_img,img_files[i]), imgheight, imgwidth, imgformat = format_img)
-        else:
-            # append to existing coco dict
-            coco_dict = generate_json_anylabeling(df_z, coco_dict, os.path.join(path_img,img_files[i]), imgheight, imgwidth, imgformat = format_img)
+        coco_dict = generate_coco_dict(df_z, coco_dict, os.path.join(path_img,img_files[i]), imgheight, imgwidth, imgformat = format_img)
         
     # save as json file
     outfname_coco = infname_mod.replace('.mod', '.json')
@@ -347,7 +339,7 @@ def convert_to_coco(infname_mod, path_img, format_img = 'png', outfname_coco = N
         
     # validate COCO json file
     print('Validating COCO json file...')
-    validate_coco(outfname_json)
+    validate_coco_json(outfname_json)
     print('COCO json file is valid. Saved as ' + outfname_coco)
 
 
@@ -362,7 +354,7 @@ def main():
     parser.add_argument('-o', '--output', help='Filename for output json file', default=None)
     args = parser.parse_args()
 
-    # convert to anylabeling format
+    # Convert to COCO format
     fnames_json = convert_to_coco(args.input, args.path_img, format_img = args.format_img, outfname_coco = args.output)
 
 if __name__ == '__main__':
