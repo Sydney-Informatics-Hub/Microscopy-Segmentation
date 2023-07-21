@@ -25,10 +25,10 @@ Requirements:
 
 Example Python
 --------------------
-import imod2labels
+import imod2coco
 infname_mod = 'IMOD_model.mod'
 path_img = '/path/to/image/files/'
-fnames_json = imod2coco.convert_to_coco(infname_mod, path_img, format_img = 'png')
+imod2coco.convert_to_coco(infname_mod, path_img, format_img = 'png')
 
 
 Author: Sebastian Haan, The University of Sydney, 2023
@@ -39,10 +39,22 @@ import re
 import argparse
 import datetime
 import pandas as pd
+import numpy as np
 import subprocess
 from PIL import Image
 import json
 
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return super(NumpyEncoder, self).default(obj)
 
 
 def load_imod_model(infname, delete_temp_modeltxt = True):
@@ -105,6 +117,8 @@ def extract_numeric_characters(string):
     """
     numeric_chars = re.findall(r'\d+', string)
     return ''.join(numeric_chars)
+
+
 
 
 def generate_coco_info(description, version = None, contributor = None):
@@ -185,8 +199,8 @@ def generate_coco_dict(
 
     # create json dictionary
     if coco_dict is None:
-        if not isinstance(licenses, list):
-            licenses = [licenses]
+        #if not isinstance(licenses, list):
+        #    licenses = [licenses]
         if coco_info is None:
             coco_info = generate_coco_info(description = 'IMOD model converted to COCO format')
         coco_dict = {
@@ -205,8 +219,8 @@ def generate_coco_dict(
 
     coco_dict['images'].append({
         "file_name": imgfile_name,
-        "height": img_height,
-        "width": img_width,
+        "height": imgheight,
+        "width": imgwidth,
         "id": img_id
     })
 
@@ -216,7 +230,7 @@ def generate_coco_dict(
     for objectId in objectIds:
         # add category if not already in categories
         if not any(d.get('id', None) == objectId for d in coco_dict['categories']):
-            coco_dict'categories'].append({
+            coco_dict['categories'].append({
                 "supercategory": "none",
                 "id": objectId,
                 "name": "class_" + str(objectId)
@@ -328,18 +342,19 @@ def convert_to_coco(infname_mod, path_img, format_img = 'png', outfname_coco = N
 
     coco_dict = None
     # loop over all z-coordinates and add image and annotations to coco_dict
+    print('Generating COCO dictionary...')
     for i, z in enumerate(z_list):
         df_z = df[df['z'] == z].copy()
-        coco_dict = generate_coco_dict(df_z, coco_dict, os.path.join(path_img,img_files[i]), imgheight, imgwidth, imgformat = format_img)
+        coco_dict = generate_coco_dict(df_z, os.path.join(path_img,img_files[i]), coco_dict, imgheight, imgwidth, imgformat = format_img)
         
     # save as json file
+    print('Generating json file...')
     outfname_coco = infname_mod.replace('.mod', '.json')
     with open(outfname_coco, 'w') as f:
-        json.dump(coco_dict, f, indent = 4)
+        json.dump(coco_dict, f, cls=NumpyEncoder)
         
     # validate COCO json file
-    print('Validating COCO json file...')
-    validate_coco_json(outfname_json)
+    validate_coco_json(outfname_coco)
     print('COCO json file is valid. Saved as ' + outfname_coco)
 
 
