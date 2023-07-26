@@ -43,6 +43,7 @@ import numpy as np
 import subprocess
 from PIL import Image
 import json
+from detectron2.structures import BoxMode
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -161,7 +162,8 @@ def generate_coco_dict(
     imgwidth = None, 
     imgformat = 'tif', 
     coco_info = None, 
-    licenses = None):
+    licenses = None,
+    calc_bbox = False):
     """
     Generate COCO dict from dataframe.
     Here the dict format follows the format of the COCO dataset.
@@ -185,6 +187,8 @@ def generate_coco_dict(
         Dictionary with information about the dataset. Default: None.
     licenses : dict
         Dictionary with information about the licenses. Default: None.
+    calc_bbox : bool
+        If True, bounding box will be calculated from points. Default: True.
     
     Returns
     -------
@@ -244,6 +248,13 @@ def generate_coco_dict(
             points = df_obj[df_obj['contourId'] == contourId][['x', 'y']].values.tolist()
             # reverse y coordinates with respect to image height
             points = [[p[0], round(imgheight - p[1],2)] for p in points]
+            # calculate bbox
+            if calc_bbox:
+                bbox = get_bbox_from_points(points)
+                bbox_mode = BoxMode.XYWH_ABS # <BoxMode.XYWH_ABS: 1>
+            else:
+                bbox = None
+                bbox_mode = None
             # Flatten the list of points and use it as segmentation data
             segmentation = [coord for point in points for coord in point]
             # create annotation
@@ -252,7 +263,8 @@ def generate_coco_dict(
                 "area": None,
                 "iscrowd": 0,
                 "image_id": img_id,
-                "bbox": None,
+                "bbox": bbox,
+                "bbox_mode": bbox_mode, #"xywh", or "xyxy
                 "category_id": objectId,
                 "id": ann_id
             }
@@ -262,6 +274,24 @@ def generate_coco_dict(
     
     return coco_dict
 
+def get_bbox_from_points(points):
+    """
+    Get bounding box from list of points.
+
+    Parameters
+    ----------
+    points : list
+        List of points in format [[x1,y1], [x2,y2], ...]
+
+    Returns
+    -------
+    bbox : list
+        Bounding box in format [x, y, width, height]
+    """
+    x = [p[0] for p in points]
+    y = [p[1] for p in points]
+    bbox = [min(x), min(y), max(x)-min(x), max(y)-min(y)]
+    return bbox
 
 def validate_coco_json(file_path):
     """
@@ -319,7 +349,7 @@ def convert_to_coco(infname_mod, path_img, format_img = 'png', outfname_coco = N
         Path to image files. Used to extract metadata needed and to add information to json.
         Image files must have the same name as the z-coordinate at the end after '_'.
     format_img : str
-        Format of image files. Default: 'tif'.
+        Format of image files. Default: 'png'.
     outfname_coco : str
         Path to output json file. If None, a json file with the same name as the model file will be created.
     """
@@ -349,7 +379,8 @@ def convert_to_coco(infname_mod, path_img, format_img = 'png', outfname_coco = N
         
     # save as json file
     print('Generating json file...')
-    outfname_coco = infname_mod.replace('.mod', '.json')
+    if outfname_coco is None:
+        outfname_coco = infname_mod.replace('.mod', '.json')
     with open(outfname_coco, 'w') as f:
         json.dump(coco_dict, f, cls=NumpyEncoder)
         
