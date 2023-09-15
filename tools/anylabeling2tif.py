@@ -80,16 +80,40 @@ def anylabeling2df(path_json, outfname = None, get_z = False):
 
 
 
+def random_color():
+    """Generate a random color."""
+    return (np.random.randint(0, 255), np.random.randint(0, 255), np.random.randint(0, 255))
 
 
-def write_polygons_to_tiff(df):
-    # Generate a unique color for each label. 
+def distinct_color(num_labels, index):
+    """Generate a distinct color from a spectrum."""
+    hue = 255 * index / num_labels
+    saturation = 255
+    value = 255
+    hsv_color = np.uint8([[[hue, saturation, value]]])
+    rgb_color = cv2.cvtColor(hsv_color, cv2.COLOR_HSV2BGR)[0][0]
+    return tuple(map(int, rgb_color))
+
+def write_polygons_to_tiff(df, outpath):
+    """
+    Write dataframe labels and polygons to tiff images.
+    Generate a unique color for each label. 
+
+    Parameters
+    ----------
+    df : pandas dataframe
+        Dataframe containing labels, polygons, and image information.
+    outpath : str
+        Path to output directory.
+    """
     unique_labels = df['label'].unique()
-    color_map = {label: (i+1)*10 for i, label in enumerate(unique_labels)}  # Assigning a unique grayscale value for simplicity
+    #color_map = {label: (i+1)*10 for i, label in enumerate(unique_labels)}  # Assigning a unique grayscale value for simplicity
+    num_labels = len(unique_labels)
+    color_map = {label: distinct_color(num_labels, i) for i, label in enumerate(unique_labels)} 
 
     for imagePath, sub_df in df.groupby('imagePath'):
         # Create a blank image
-        image_data = np.zeros((int(sub_df['imageHeight'].values[0]), int(sub_df['imageWidth'].values[0])), dtype=np.uint8)
+        image_data = np.zeros((int(sub_df['imageHeight'].values[0]), int(sub_df['imageWidth'].values[0]), 3), dtype=np.uint8)
 
         # For each polygon in the sub-DataFrame, draw the polygon onto the blank image using OpenCV
         for idx, row in sub_df.iterrows():
@@ -98,6 +122,6 @@ def write_polygons_to_tiff(df):
             cv2.fillPoly(image_data, [pts], color_map[row['label']])
         
         # Save the image as TIFF using tifffile
-        output_path = imagePath.replace('.tif', '_mask.tif')
+        outfname = os.path.basename(imagePath).replace('.tif', '_mask.tif')
+        output_path = os.path.join(outpath, outfname)
         tiff.imwrite(output_path, image_data)
-
