@@ -7,11 +7,17 @@ import pandas as pd
 import json
 import numpy as np
 import rasterio
-from rasterio.features import geometry_mask
-from shapely.geometry import Polygon, MultiPolygon
 
 import cv2
 import tifffile as tiff
+
+
+def extract_after_last_z(filename):
+    basename = os.path.splitext(os.path.basename(filename))[0]
+    last_z_index = basename.rfind('z')
+    if last_z_index == -1: # 'z' not found in basename
+        return ""
+    return basename[last_z_index + 1:]
 
 
 def anylabeling2df(path_json, outfname = None, get_z = False):
@@ -37,9 +43,9 @@ def anylabeling2df(path_json, outfname = None, get_z = False):
 
     if get_z:
         # sort files by z-coordinate
-        json_files = sorted(json_files, key = lambda x: int(x.split('_')[1].split('.')[0].replace('z', '')))
+        json_files = sorted(json_files, key = lambda x: int(extract_after_last_z(x)))
         # extract z-coordinate from filename as integer
-        z_list = [int(f.split('_')[1].split('.')[0].replace('z', '')) for f in json_files]
+        z_list = [int(extract_after_last_z(f)) for f in json_files]
 
     # define dataframe to save all points
     df_all = pd.DataFrame(columns = ['label', 'points', 'shapetype', 'imagePath', 'imageHeight', 'imageWidth', 'z'])
@@ -152,6 +158,15 @@ def write_polygons_to_tiff(df, outpath):
         outfname = os.path.basename(imagePath).replace('.tif', '_mask.tif')
         output_path = os.path.join(outpath, outfname)
         tiff.imwrite(output_path, image_data)
-        outfname_list.append(outfname)
+        outfname_list.append(output_path)
 
     return outfname_list, dict_colors
+
+
+def stack_images_to_tiff(image_paths, output_path):
+    """Stack multiple images into one TIFF."""
+    images = [tiff.imread(image_path) for image_path in image_paths]
+    tiff.imwrite(output_path, images, compress=6, photometric='minisblack')
+
+
+
