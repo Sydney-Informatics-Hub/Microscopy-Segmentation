@@ -86,7 +86,21 @@ def random_color():
 
 
 def distinct_color(num_labels, index):
-    """Generate a distinct color from a spectrum."""
+    """
+    Generate a distinct color from a spectrum.
+
+    Parameters
+    ----------
+    num_labels : int
+        Number of labels.
+    index : int
+        Index of label.
+
+    Returns
+    -------
+    tuple
+        RGB color.
+    """
     hue = 255 * index / num_labels
     saturation = 255
     value = 255
@@ -105,11 +119,21 @@ def write_polygons_to_tiff(df, outpath):
         Dataframe containing labels, polygons, and image information.
     outpath : str
         Path to output directory.
+
+    Returns
+    -------
+    outfname_list : list
+        List of output filenames.
+    dict_colors : dict
+        Dictionary containing label and color information.
     """
     unique_labels = df['label'].unique()
     #color_map = {label: (i+1)*10 for i, label in enumerate(unique_labels)}  # Assigning a unique grayscale value for simplicity
     num_labels = len(unique_labels)
     color_map = {label: distinct_color(num_labels, i) for i, label in enumerate(unique_labels)} 
+
+    outfname_list = []
+    dict_colors = {}
 
     for imagePath, sub_df in df.groupby('imagePath'):
         # Create a blank image
@@ -120,8 +144,14 @@ def write_polygons_to_tiff(df, outpath):
             pts = np.array(row['points'], np.int32)
             pts = pts.reshape((-1, 1, 2))
             cv2.fillPoly(image_data, [pts], color_map[row['label']])
+            # save color for each label in dict_colors. Save only if not existent yet
+            if row['label'] not in dict_colors.keys():
+                dict_colors[row['label']] = color_map[row['label']]
         
         # Save the image as TIFF using tifffile
         outfname = os.path.basename(imagePath).replace('.tif', '_mask.tif')
         output_path = os.path.join(outpath, outfname)
         tiff.imwrite(output_path, image_data)
+        outfname_list.append(outfname)
+
+    return outfname_list, dict_colors
