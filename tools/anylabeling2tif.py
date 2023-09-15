@@ -1,8 +1,31 @@
 """
 Converts Anylabeling json annotation files to multistack tiff images.
+
+Example:
+    python anylabeling2tif.py --path_json /path/to/json/files --path_out /path/to/output/
+
+Features:
+- Supports multiple labels per image
+- Supports multiple polygons per label
+- Supports z-coordinates for 3D image stacks
+- Save color-coded images with labels as tiff images
+
+
+The Anylabeling json files need to include the following information:
+- 'imageHeight' : height of the image
+- 'imageWidth' : width of the image
+- 'imagePath' : path to image
+- 'shapes' : list of objects with points and labels
+Each shape has the following information:
+    - 'label' : list of labels, one for each polygon
+    - 'points' : list of points for each polygon
+    - 'shape_type' : type of shape, e.g. 'polygon'
+
+Author: Sebastian Haan
 """
 
 import os
+import argparse
 import pandas as pd
 import json
 import numpy as np
@@ -10,6 +33,8 @@ import rasterio
 
 import cv2
 import tifffile as tiff
+import imageio
+
 
 
 def extract_after_last_z(filename):
@@ -163,10 +188,68 @@ def write_polygons_to_tiff(df, outpath):
     return outfname_list, dict_colors
 
 
-def stack_images_to_tiff(image_paths, output_path):
-    """Stack multiple images into one TIFF."""
-    images = [tiff.imread(image_path) for image_path in image_paths]
-    tiff.imwrite(output_path, images, compress=6, photometric='minisblack')
+
+def convert_to_stack_tif(filenames, output_filename):
+    """
+    Convert a stack of images in a directory to a single 3D TIFF file.
+
+    Parameters:
+    - filenames: list of input filenames
+    - output_filename: The name of the output 3D TIFF file.
+    """
+    
+    #images = [imread(os.path.join(directory, image_file)) for image_file in files]
+    images = [imageio.v2.imread(image_file) for image_file in filenames]
+
+    # Save the list of images as a single 3D TIFF
+    imageio.volwrite(output_filename, images)
 
 
 
+def anylabeling_to_tif(path_json, outpath_tif, get_z = False):
+    """
+    Write anylabeling json files to tiff images.
+    Tiff images are stacked into a single tiff file and saved to outpath_tif.
+    Color dictionary is saved to outpath_tif.
+
+    Parameters
+    ----------
+    path_json : str
+        Path to json files. 
+    outpath_tif : str
+        Path to output directory.
+    get_z : bool, optional
+        If True, z-coordinate is extracted from json filename. The default is False.
+        If True the json files must be named as follows: 'image_z<z>.json' or image_<z>.json where <z> is the z-coordinate of the image.
+
+    Returns
+    -------
+    None 
+    """
+    # Convert and merge anylabeling json files to pandas dataframe
+    df, json_files = anylabeling2df(path_json, outfname = None, get_z = get_z)
+
+    # Write labels and  polygons to tiff images
+    outfname_list, dict_colors = write_polygons_to_tiff(df, path_json)
+
+    # stack images
+    convert_to_stack_tif(outfname_list, os.path.join(outpath_tif, 'polygons_stacked.tif'))
+    
+    # Delete temporary tiff files
+    for f in outfname_list:
+        os.remove(f)
+
+    # Save color dictionary
+    with open(os.path.join(outpath_tif, 'polygons_stacked_color_dict.json'), 'w') as fp:
+        json.dump(dict_colors, fp)
+
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Convert anylabeling json files to tiff images.')
+    parser.add_argument('--path_json', type=str, help='Path to json files. For 3D, json files must be named as follows: "image_z<z>.json" or "image_<z>.json" where <z> is the z-coordinate of the image.')
+    parser.add_argument('--path_out', type=str, help='Path to output directory.')
+    parser.add_argument('--get_z', action='store_true', default=False, help='If True, z-coordinate is extracted from json filename. The default is False.')
+    args = parser.parse_args()
+
+    anylabeling_to_tif(args.path_json, args.path_out, args.get_z)
