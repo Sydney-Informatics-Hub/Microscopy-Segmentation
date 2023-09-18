@@ -179,8 +179,11 @@ def write_polygons_to_tiff(df, outpath):
                 dict_colors[row['label']] = color_map[row['label']]
         
         # Save the image as TIFF using tifffile
-        outfname = os.path.basename(imagePath).replace('.tif', '_mask.tif')
+        # get file format name of imagePath
+        img_format = os.path.basename(imagePath).split('.')[-1]
+        outfname = os.path.basename(imagePath).replace('.'+img_format, '_mask.'+img_format)
         output_path = os.path.join(outpath, outfname)
+        print(f'writing image to {output_path}')
         tiff.imwrite(output_path, image_data)
         outfname_list.append(output_path)
 
@@ -196,7 +199,7 @@ def convert_to_stack_tif(filenames, output_filename):
     - filenames: list of input filenames
     - output_filename: The name of the output 3D TIFF file.
     """
-    
+
     #images = [imread(os.path.join(directory, image_file)) for image_file in files]
     images = [imageio.v2.imread(image_file) for image_file in filenames]
 
@@ -225,6 +228,9 @@ def anylabeling_to_tif(path_json, outpath_tif, get_z = False):
     -------
     None 
     """
+    # Create output directory if not existent
+    os.makedirs(outpath_tif, exist_ok = True)
+
     # Convert and merge anylabeling json files to pandas dataframe
     df, json_files = anylabeling2df(path_json, outfname = None, get_z = get_z)
 
@@ -236,8 +242,6 @@ def anylabeling_to_tif(path_json, outpath_tif, get_z = False):
     
     # Delete temporary tiff files
     for f in outfname_list:
-        # if f ends with _mask.tif, delete it
-        if f.endswith('_mask.tif'):
             os.remove(f)
 
     # Save color dictionary
