@@ -236,7 +236,9 @@ def anylabeling_to_tif(path_json, outpath_tif, get_z = False):
     
     # Delete temporary tiff files
     for f in outfname_list:
-        os.remove(f)
+        # if f ends with _mask.tif, delete it
+        if f.endswith('_mask.tif'):
+            os.remove(f)
 
     # Save color dictionary
     with open(os.path.join(outpath_tif, 'polygons_stacked_color_dict.json'), 'w') as fp:
