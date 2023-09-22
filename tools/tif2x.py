@@ -56,6 +56,89 @@ def convert_images(input_dir, output_dir, output_format='png', size=None, color_
             img.save(output_file)
             print(f"Image {output_file} has been saved.")
 
+
+def split_image_into_tiles(infname_img, tile_width, tile_height, overlap, outpath=None):
+        """
+    Split images into tiles. Tiles are named as follows: <basename_img>_<x>_<y>.<ext>
+
+    Parameters
+    ----------
+    infname_img : str
+        Input image filename
+    
+    tile_width : int
+        Tile size width
+    tile_height : int
+        Tile size height
+    overlap : bool
+        If True, tiles are allowed to overlap.
+        If False, tiles are not allowed to overlap and will be resampled to tile_width and tile_height if necessary.
+    outpath : str
+        Output path for tiles
+        If none, tiles are saved in the same directory as the input image
+    """
+    # read image
+    img = Image.open(infname_img)
+    img_width, img_height = img.size
+
+    # If outpath is not provided, save in the same directory as the input image
+    os.makedirs(outpath, exist_ok=True)
+
+    # Create the output directory if it doesn't exist
+    if not os.path.exists(outpath):
+        os.makedirs(outpath)
+
+    # Calculate overlap ratio
+    if overlap:
+        overlap_ratio_width = (tile_width - (img_width % tile_width) / (img_width // tile_width)) / tile_width
+        overlap_ratio_height = (tile_height - (img_height % tile_height) / (img_height // tile_height)) / tile_height
+        print(f"Overlap ratio (width): {overlap_ratio_width:.2f}")
+        print(f"Overlap ratio (height): {overlap_ratio_height:.2f}")
+
+        num_tiles_x = (img_width - tile_width) // (tile_width // 2) + 1
+        num_tiles_y = (img_height - tile_height) // (tile_height // 2) + 1
+    else:
+        num_tiles_x = img_width // tile_width
+        num_tiles_y = img_height // tile_height
+
+    # Get the image basename and extension
+    base_name = os.path.basename(infname_img)
+    name, ext = os.path.splitext(base_name)
+
+    # Split the image into tiles and save them
+    for i in range(num_tiles_x):
+        for j in range(num_tiles_y):
+            if overlap:
+                left = i * (tile_width // 2)
+                upper = j * (tile_height // 2)
+            else:
+                left = i * tile_width
+                upper = j * tile_height
+            right = left + tile_width
+            lower = upper + tile_height
+
+            # Ensure the tile coordinates are within the image boundaries
+            if right > img_width or lower > img_height:
+                continue
+
+            tile = img.crop((left, upper, right, lower))
+
+            # If no overlap and tile size is different, resize the tile
+            if not overlap and (tile.size != (tile_width, tile_height)):
+                tile = tile.resize((tile_width, tile_height))
+
+            tile_filename = os.path.join(outpath, f"{name}_{i}_{j}{ext}")
+            tile.save(tile_filename)
+    print(f"Tiles saved in {outpath}")
+
+def test_split_image_into_tiles():
+    infname_img = '../testdata/sample_anylabeling/HM25_001.png'
+    tile_width = 640
+    tile_height = 640
+    overlap=False
+    outpath = '../testdata/test_tiles'
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert .tif images to another format.')
     parser.add_argument('-i', '--input_dir', help='Directory of .tif images', required=True)
