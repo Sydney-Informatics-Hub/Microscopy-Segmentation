@@ -1,6 +1,6 @@
 # Cell Segment Toolkit 
 
-The cell segmentation toolkit is a collection of tools that can be used to convert data from one format to another. The toolkit is designed to be used with 3D cell frameworks such as IMOD, MONAI, 3DSclicer, and Avizo in conjunction with AI-assisted segmentation annotation tools such as Anylabeling and other open-source segmentation software.
+The cell segmentation toolkit is a collection of tools that enables 3D data conversion between different microsocopy frameworks and offers workflows for multiple AI segmentation tools. The toolkit is designed to be used with 3D cell frameworks such as IMOD, MONAI, 3DSclicer, and Avizo in conjunction with AI-assisted segmentation annotation tools such as Anylabeling and other open-source segmentation software.
 
 ## Installation
 
@@ -12,11 +12,11 @@ conda activate cellsegment
 conda env update --file environment.yaml
 ```
 
-Further, the toolkit requires the installation of the [IMOD software package](https://bio3d.colorado.edu/imod/).
+To leverage conversions to/from IMOD, the toolkit requires the installation of the [IMOD software package](https://bio3d.colorado.edu/imod/).
 
 ## Overview
 
-The following conversion tools have been built as part of this project:
+The following conversion tools are currently build as part of this project:
 
 ```mermaid
 
@@ -26,9 +26,9 @@ graph TD
     coco[COCO: .json]
     mesh[MESH: OBJ, VRML, STL, PLY, OFF, GLB, COLLADA]
     csv[CSV: .csv]
-    tiff[TIFF: .tiff]
+    tiff[TIFF stack: .tiff]
     avizo[Avizo: .am]
-
+    
     imod-- imod2coco.py -->coco
     imod-- imod2csv.py -->csv 
     imod-- imod2labels.py -->anylabel
@@ -36,6 +36,7 @@ graph TD
     anylabel-- labels2imod.py -->imod
     anylabel-- anylabeling2tif.py -->tiff
     tiff-- Avizo import -->avizo
+    tiff-- tiff2mesh -->mesh
 
 ```
 
@@ -91,4 +92,12 @@ Converts IMOD model files (.mod) to mesh files in various formats (OBJ, VRML, ST
 
 ```bash
 python imod2mesh.py -i IMOD_model.mod -o OBJ
+```
+
+### TIFF image stack to mesh
+
+Converts a tiff image stack to to mesh files in various formats (OBJ, VRML, STL, PLY, OFF, GLB, COLLADA).
+
+```bash
+python python tiff2mesh.py --directory path/to/images --filename_pattern {}.tif --filename_out FNAME_MESH_OUTPUT.wrl --file_format VRML --grid_spacing 1 1 1
 ```
