@@ -97,6 +97,11 @@ def load_imod_model(infname, delete_temp_modeltxt = True):
     -------
     df : pandas dataframe
     """
+    # Check if infname exists
+    if not os.path.isfile(infname):
+        print(f'Error: {infname} does not exist.')
+        return None
+
     # create temporary file to save points
     outfname_temp = infname.replace('.mod', '.txt')
 
@@ -213,6 +218,50 @@ def generate_json_anylabeling(df, imgfile, imgheight = None, imgwidth = None, im
     with open(outfname_json, 'w') as f:
         json.dump(json_dict, f, indent = 4)
     return outfname_json
+
+
+def generate_json_coco(df, imgfile, imgheight = None, imgwidth = None, imgformat = 'tif', info = None, licenses = None, categories = None):
+    """
+    Generate json file from dataframe.
+    Here the json file follows the format of the COCO dataset.
+    The json file is saved in the same folder as the image file.
+
+    Parameters
+    ----------
+    df : pandas dataframe
+        must include at least the following columns: ['objectId', 'x', 'y']
+    imgfile : str
+        Path to image file.
+    imgheight : int
+        Height of image in pixels. If None, extracted from image file.
+    imgwidth : int
+        Width of image in pixels. If None, extracted from image file.
+    imgformat : str
+        Format of image file. Default: 'tif'.
+    
+    Returns
+    -------
+    json : json filename.
+    """
+    # if imgheight or imgwidth are not provided, get them from image file
+    if (imgheight is None) or (imgwidth is None):
+        imgwidth, imgheight = get_image_size(imgfile)
+
+    # get name of image file without path
+    imgfile_name = os.path.basename(imgfile)
+
+    # get unique objectIds
+    objectIds = df['objectId'].unique()
+    # create json dictionary
+    json_dict = {
+        "info": info,
+        "licenses": [licenses],
+        "images": [],
+        "annotations": [],
+        "categories": []
+    }
+
+
 
 def convert_to_anylabeling(infname_mod, path_img, format_img = 'png'):
     """
