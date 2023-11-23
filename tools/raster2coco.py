@@ -1,4 +1,23 @@
-# Convert segmentation annotations in raster (e.g. tif) format to COCO json format.
+"""
+Convert segmentation annotations in raster format to COCO json format.
+Raster annotations are images (stack of images) that encode segmentation masks in grayscale. 
+By default, this program assumes only one object category and polygons are extracted from each grayscale segment that has a value larger than 0.
+Optionally, you can set the argument "extract_segment_grayscale", which will use the grayscale value as a category ID.
+
+Example usage:
+python raster2coco.py --path_annotation /path/to/annotation/files --path_img /path/to/image/files --format_img tif --outfname_coco /path/to/output.json
+
+Required Args:
+    path_annotation (str): Path to raster annotation files.
+    path_img (str): Path to image files. Used to extract metadata needed and to add information to json.
+
+Optional Args:
+    format_img (str): Format of image files. Default: 'tif'.
+    outfname_coco (str): Path to output json file. If None, a json file with the same name as the model file will be created.
+    extract_segment_grayscale: If True, the grayscale value inside the polygon is calculated and added to the dataframe as objectID. Default: False.
+
+Author: Sebastian Haan
+"""
 
 import cv2
 import numpy as np
@@ -256,7 +275,7 @@ def generate_coco_dict(
     
     return coco_dict
 
-def extract_polygons(image_path, get_segment_color = False, objectID = 1):
+def extract_polygons(image_path, extract_segment_grayscale = False):
     """
     Extract polygons from grayscale image.
 
@@ -264,6 +283,10 @@ def extract_polygons(image_path, get_segment_color = False, objectID = 1):
     ----------
     image_path : str
         Path to image file.
+    extract_segment_grayscale : bool
+        If True, the grayscale value inside the polygon is calculated and added to the dataframe as objectID. Default: False.
+        If False, it is assumed that there is only one object category and objectID is set to 1.
+
 
     Returns
     -------
@@ -274,39 +297,35 @@ def extract_polygons(image_path, get_segment_color = False, objectID = 1):
     # Load the image in grayscale
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
 
-    # get maximum value in image
-    max_value = np.max(image)
-
-    # Apply a threshold to get a binary image
-    #_, binary_image = cv2.threshold(image, 0, max_value, cv2.THRESH_BINARY)
+    # Apply a threshold to get a binary image. Not needed since cv2.findContours works with grayscale images.
+    #_, binary_image = cv2.threshold(image, 0, np.max(image), cv2.THRESH_BINARY)
 
     # Find contours and value 
-    #contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours, _ = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE) 
     # cv2.CHAIN_APPROX_NONE
     # cv2.RETR_EXTERNAL: retrieves only the extreme outer contours)
     #  cv2.CHAIN_APPROX_SIMPLE (compresses horizontal, diagonal, and vertical segments and leaves only their end points) and cv2.CHAIN_APPROX_NONE (stores all the contour points)
-    # result = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-    # cv2.drawContours(result, contours, -1, (0, 255, 0), 2)
 
     lst = []
     for i, contour in enumerate(contours): 
         # Approximate the contour to a polygon
         epsilon = 0.01 * cv2.arcLength(contour, True)
         polygon = cv2.approxPolyDP(contour, epsilon, True)
-        if get_segment_color:
+        if extract_segment_grayscale:
             # Create a mask for this polygon
             mask = np.zeros(image.shape, dtype=np.uint8)
             cv2.fillPoly(mask, [polygon], 255)
             # Calculate the average grayscale value inside the polygon
-            mean_val = round(cv2.mean(image, mask=mask)[0])
+            #mean_val = round(cv2.mean(image, mask=mask)[0])
+            # calculate the median grayscale value inside the polygon
+            median_val = int(np.median(image[mask == 255]))
         else:
-            mean_val = None
-        lst.append([i, objectID, mean_val, polygon.reshape(-1, 2)])
+            median_val = 1
+        lst.append([i, median_val, polygon.reshape(-1, 2)])
 
-    return pd.DataFrame(lst, columns = ['contourId', 'objectId', 'colorId', 'polygon'])
+    return pd.DataFrame(lst, columns = ['contourId', 'objectId', 'polygon'])
 
-def convert(path_anno, path_img, format_img = 'tif', outfname_coco = None):
+def convert(path_anno, path_img, format_img = 'tif', outfname_coco = None, extract_segment_grayscale = False):
     """
     Converts raster annotations to to a COCO annotation json file for segmentation.
 
@@ -338,7 +357,7 @@ def convert(path_anno, path_img, format_img = 'tif', outfname_coco = None):
     # get df from annotation files
     print("extracting polygons from annotation images...")
     for i, f in enumerate(anno_files):
-        dfsel = extract_polygons(os.path.join(path_anno, f))
+        dfsel = extract_polygons(os.path.join(path_anno, f), extract_segment_grayscale = extract_segment_grayscale)
         dfsel['z'] = z_img_list[i]
         if i == 0:
             df = dfsel
@@ -367,3 +386,17 @@ def convert(path_anno, path_img, format_img = 'tif', outfname_coco = None):
     # validate COCO json file
     validate_coco_json(outfname_coco)
     print('COCO json file is valid. Saved as ' + outfname_coco)
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Convert raster annotations to COCO json format.')
+    parser.add_argument('--path_annotation', type=str, required=True, help='Path to raster annotation files.')
+    parser.add_argument('--path_img', type=str, required=True, help='Path to image files. Used to extract metadata needed and to add information to json.')
+    parser.add_argument('--format_img', type=str, default='tif', help='Format of image files. Default: tif.')
+    parser.add_argument('--outfname_coco', type=str, default=None, help='Path to output json file. If None, a json file with the same name as the model file will be created.')
+    parser.add_argument('--extract_segment_grayscale', action='store_true', help='If called, the grayscale value inside the polygon is calculated and added to the dataframe as objectID. Default: False.')
+    args = parser.parse_args()
+    convert(args.path_annotation, args.path_img, args.format_img, args.outfname_coco, args.extract_segment_grayscale)
+
+if __name__ == '__main__':
+    main()
