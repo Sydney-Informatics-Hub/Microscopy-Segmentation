@@ -37,6 +37,7 @@ graph TD
     anylabel-- anylabeling2tif.py -->tiff
     tiff-- Avizo import -->avizo
     tiff-- tiff2mesh -->mesh
+    tiff-- raster2coco --> coco
 
 ```
 
@@ -76,6 +77,14 @@ Converts polygon label files in Anylabeling json format to IMOD model files (.mo
 import labels2imod
 inpath = '/path/to/json/files/'
 labels2imod.convert(inpath, outfname_mod)
+```
+
+### Raster-masks to COCO
+
+Convert segmentation annotations in raster format (e.g. tif image stack) to a COCO json file with annotations for polygon segmentation.
+
+```bash
+python raster2coco.py --path_annotation /path/to/annotation/files --path_img /path/to/image/files/ --format_img tif
 ```
 
 ### Anylabeling json to TIFF
