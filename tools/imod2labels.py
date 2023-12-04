@@ -297,8 +297,18 @@ def convert_to_anylabeling(infname_mod, path_img, format_img = 'png'):
     # get image height and width of first image and assume all images have same size
     imgwidth, imgheight = get_image_size(os.path.join(path_img, img_files[0]))
 
+        # check if z-coordinates of model and images match
+    if len(z_list) != len(z_img_list):
+        print(f'Warning: Number of z-coordinates in model ({len(z_list)}) and images in image folder ({len(z_img_list)}) do not match.')
+        print('Selecting only matching images')
+        z_list_sel = [int(z + 0.5) for z in z_list]
+        # select indices of z_img_list that are in z_list_sel
+        isel_img_list = [i for i, z in enumerate(z_img_list) if z in z_list_sel]
+        img_files = [img_files[i] for i in isel_img_list]
+        z_img_list = [z_img_list[i] for i in isel_img_list]
+
     # check if z-coordinates of model and images match
-    assert len(z_list) == len(z_img_list), 'Error: Number of z-coordinates in model and images in image folder do not match.'
+    #assert len(z_list) == len(z_img_list), 'Error: Number of z-coordinates in model and images in image folder do not match.'
 
     # generate json file for each z
     outfnames = []
