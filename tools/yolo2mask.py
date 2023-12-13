@@ -2,8 +2,9 @@
 Convert YOLO segmentation labels (txt files) to image masks.
 
 Functionalities:
-- extract polygons from YOLO files
-- filter category
+- convert YOLO polygons to masks
+- solve nested polygons by merging them
+- filtering category
 - write mask image with options to either keep orig image in mask or generate binary image
 - support multiple image formats
 
@@ -28,7 +29,7 @@ def extract_masks(fname_img, fname_txt, cat_id = None):
         pts: list of mask arrays
         img: image
     """
-    ## Reading the image
+    # Read image
     img = cv.imread(fname_img)
     height = img.shape[0]
     width = img.shape[1]
@@ -39,20 +40,22 @@ def extract_masks(fname_img, fname_txt, cat_id = None):
     for line in txt_lines:
         try:
             line = line.split(" ")
-            #line=list(filter(lambda i: "." in i,line))
             pts_part = []
-            if cat_id != None and line[0] == str(cat_id):  
-                for i in range(1, len(line), 2):
-                    pts_part.append([int(float(line[i]) * width), int(float(line[i + 1]) * height)])
-                pts.append(pts_part) 
+            if cat_id is not None:
+                if line[0] != str(cat_id): 
+                    continue 
+            for i in range(1, len(line), 2):
+                pts_part.append([int(float(line[i]) * width), int(float(line[i + 1]) * height)])
+            pts.append(pts_part) 
         except:
             pass
     return pts, img 
 
 
-def convert_to_mask(path_labels, path_images, outpath, cat_id = None, format_image= "png", format_out="jpg"):
+def convert_to_mask(path_labels, path_images, outpath, cat_id = None, format_image= "png", format_out="jpg", keep_orig = False):
     """
-    Convert yolo labels to masks for a given category ID
+    Convert yolo labels to masks for a given category ID.
+    Generated masks are saved in outpath folder.
 
     Args:
         path_labels (str): path to the folder with yolo labels
@@ -61,6 +64,7 @@ def convert_to_mask(path_labels, path_images, outpath, cat_id = None, format_ima
         cat_id (int): category id of label, default None (all labels converted to masks)
         format_image (str): image format, default "png"         
         format_out (str): output image format, default "png"     
+        keep_orig (bool): if True, keep original image in the mask. Default False, binary mask is saved 
     """
 
     image_list = [f for f in os.listdir(path_images) if f.endswith(f'.{format_image.lower()}') or f.endswith(f'.{format_image.upper()}')]
@@ -76,25 +80,26 @@ def convert_to_mask(path_labels, path_images, outpath, cat_id = None, format_ima
             if img_num == txt_num:
                 break
 
+        # extract polygons from YOLO txt file
         pts, img = extract_masks(os.path.join(path_images,fname_img), os.path.join(path_labels,fname_txt), cat_id)
-
-        ## making array of arrays
-       # q = [np.asarray(n) for n in pts]
-       # pts = np.array(q) 
         pts = [np.asarray(n) for n in pts]
 
         ## making the mask
         mask = np.zeros(img.shape[:2], np.uint8)
-        #pts = np.array(pts, np.int32)
-        # Draw the contour using the coordinate pairs and fill it with 255 (white) in the mask array:
-        res = cv.drawContours(mask, pts, -1, (255, 255, 255), -1, cv.LINE_AA)
+        # generate contour using pts and fill mask with 255 (white):
+        for i in range(len(pts)):
+            try:
+                cv.drawContours(mask, pts, i, (255, 255, 255), thickness=-1, lineType=cv.LINE_AA)
+            except:
+                pass
 
         ## applying the mask
-        dst = cv.bitwise_and(img, img, mask=res)
+        if keep_orig:
+            dst = cv.bitwise_and(img, img, mask=mask)
+        else:
+            dst = mask
 
         ## write masked image in a folder
         success = cv.imwrite(os.path.join(outpath,txt_num + f'mask_class{cat_id}.{format_out}'), dst)
         if not success:
             raise Exception(f"Could not write image {txt_num + f'mask_class{cat_id}.{format_out}'}")
-
- 
