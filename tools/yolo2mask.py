@@ -1,6 +1,17 @@
 """
 Convert YOLO segmentation labels (txt files) to image masks.
 
+Example usage via command line:
+python yolo2mask.py -i /path/to/yolo/labels -o /path/to/output -c 1 -f png -k
+
+Arguments:
+-i, --input_dir: Directory of YOLO segmentation labels (txt files)
+-o, --output_dir: Output directory
+-c, --category_id: Category ID
+-f, --format: Output format
+-k, --keep_orig: Keep original image in the mask
+
+
 Functionalities:
 - convert YOLO polygons to masks
 - solve nested polygons by merging them
@@ -15,6 +26,7 @@ import os
 import numpy as np
 import cv2 as cv
 import shutil
+import argparse
 
 def extract_masks(fname_img, fname_txt, cat_id = None):
     """
@@ -67,6 +79,7 @@ def convert_to_mask(path_labels, path_images, outpath, cat_id = None, format_ima
         keep_orig (bool): if True, keep original image in the mask. Default False, binary mask is saved 
     """
 
+
     image_list = [f for f in os.listdir(path_images) if f.endswith(f'.{format_image.lower()}') or f.endswith(f'.{format_image.upper()}')]
     txt_list = [f for f in os.listdir(path_labels) if f.endswith(f'.txt')]
 
@@ -103,3 +116,18 @@ def convert_to_mask(path_labels, path_images, outpath, cat_id = None, format_ima
         success = cv.imwrite(os.path.join(outpath,txt_num + f'mask_class{cat_id}.{format_out}'), dst)
         if not success:
             raise Exception(f"Could not write image {txt_num + f'mask_class{cat_id}.{format_out}'}")
+        
+
+def main():
+    parser = argparse.ArgumentParser(description='Convert YOLO segmentation labels (txt files) to image masks.')
+    parser.add_argument('-i', '--input_dir', help='Directory of YOLO segmentation labels (txt files)', required=True)
+    parser.add_argument('-o', '--output_dir', help='Output directory', default='./output')
+    parser.add_argument('-c', '--category_id', help='Category ID', default=None)
+    parser.add_argument('-f', '--format', help='Output format', default='png', choices=['png', 'jpg'])
+    parser.add_argument('-k', '--keep_orig', help='Keep original image in the mask', action='store_true')
+    args = parser.parse_args()
+
+    convert_to_mask(args.input_dir, args.output_dir, args.category_id, args.format, args.keep_orig)
+
+if __name__ == '__main__':
+    main()
