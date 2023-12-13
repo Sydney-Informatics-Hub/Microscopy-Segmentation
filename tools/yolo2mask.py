@@ -64,7 +64,7 @@ def extract_masks(fname_img, fname_txt, cat_id = None):
     return pts, img 
 
 
-def convert_to_mask(path_labels, path_images, outpath, cat_id = None, format_image= "png", format_out="jpg", keep_orig = False):
+def convert_to_mask(path_labels, path_images, outpath = None, cat_id = None, format_out="jpg", keep_orig = False):
     """
     Convert yolo labels to masks for a given category ID.
     Generated masks are saved in outpath folder.
@@ -72,15 +72,23 @@ def convert_to_mask(path_labels, path_images, outpath, cat_id = None, format_ima
     Args:
         path_labels (str): path to the folder with yolo labels
         path_images (str): path to the folder with corresponding images. Image names should be the same as label names.
-        outpath (str): path to the folder where masks will be saved
-        cat_id (int): category id of label, default None (all labels converted to masks)
-        format_image (str): image format, default "png"         
+        outpath (str): path to the folder where masks will be saved. Default None, masks are saved in the same folder as labels.
+        cat_id (int): category id of label, default None (all labels converted to masks)   
         format_out (str): output image format, default "png"     
         keep_orig (bool): if True, keep original image in the mask. Default False, binary mask is saved 
     """
 
+    # check if output path is given
+    if outpath is None:
+        outpath = path_labels
+    else:
+        os.makedirs(outpath, exist_ok=True)
 
-    image_list = [f for f in os.listdir(path_images) if f.endswith(f'.{format_image.lower()}') or f.endswith(f'.{format_image.upper()}')]
+    # accepted input image formats
+    accepted_formats = ["png", "jpg", "jpeg", "tif", "tiff"]
+    image_list = [f for f in os.listdir(path_images) if f.split(".")[-1].lower() in accepted_formats]
+
+    # label files
     txt_list = [f for f in os.listdir(path_labels) if f.endswith(f'.txt')]
 
     for fname_txt in txt_list:
@@ -120,14 +128,15 @@ def convert_to_mask(path_labels, path_images, outpath, cat_id = None, format_ima
 
 def main():
     parser = argparse.ArgumentParser(description='Convert YOLO segmentation labels (txt files) to image masks.')
-    parser.add_argument('-i', '--input_dir', help='Directory of YOLO segmentation labels (txt files)', required=True)
-    parser.add_argument('-o', '--output_dir', help='Output directory', default='./output')
-    parser.add_argument('-c', '--category_id', help='Category ID', default=None)
-    parser.add_argument('-f', '--format', help='Output format', default='png', choices=['png', 'jpg'])
-    parser.add_argument('-k', '--keep_orig', help='Keep original image in the mask', action='store_true')
+    parser.add_argument('-l', '--label_dir', help='Directory of YOLO segmentation labels (txt files)', required=True)
+    parser.add_argument('-i', '--image_dir', help='Directory of corresponding images to labels', required=True)
+    parser.add_argument('-o', '--output_dir', help='Output directory', default=None)
+    parser.add_argument('-c', '--category_id', help='Selected category ID. This is the first number in each label row', default=None)
+    parser.add_argument('-f', '--format', help='Output image format', default='jpg', choices=['png', 'jpg', 'tif'])
+    parser.add_argument('-k', '--keep_orig', default = False, help='Keep original image in the mask. Default False, binary mask will be generated', action='store_true')
     args = parser.parse_args()
 
-    convert_to_mask(args.input_dir, args.output_dir, args.category_id, args.format, args.keep_orig)
+    convert_to_mask(args.label_dir, args.image_dir, args.output_dir, args.category_id, args.format, args.keep_orig)
 
 if __name__ == '__main__':
     main()
