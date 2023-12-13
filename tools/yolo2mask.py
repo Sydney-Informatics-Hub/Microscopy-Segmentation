@@ -2,14 +2,17 @@
 Convert YOLO segmentation labels (txt files) to image masks.
 
 Example usage via command line:
-python yolo2mask.py -i /path/to/yolo/labels -o /path/to/output -c 1 -f png -k
+python yolo2mask.py --label_dir /path/to/labels --image_dir /path/to/images --output_dir /path/to/output --category_id 0 --format jpg
 
-Arguments:
--i, --input_dir: Directory of YOLO segmentation labels (txt files)
--o, --output_dir: Output directory
--c, --category_id: Category ID
--f, --format: Output format
--k, --keep_orig: Keep original image in the mask
+Required Arguments:
+--label_dir: Directory of YOLO segmentation labels (txt files)
+--image_dir: Directory of corresponding images to labels
+
+Optional Arguments:
+--output_dir: Output directory
+--category_id: Selected category ID. This will filter based on the first number in each label row
+--format: Output image format, default "jpg"
+--keep_orig: Keep original image in the mask. Default False, binary mask will be generated
 
 
 Functionalities:
