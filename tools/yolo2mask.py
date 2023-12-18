@@ -124,9 +124,9 @@ def convert_to_mask(path_labels, path_images, outpath = None, cat_id = None, for
             dst = mask
 
         ## write masked image in a folder
-        success = cv.imwrite(os.path.join(outpath,txt_num + f'mask_class{cat_id}.{format_out}'), dst)
+        success = cv.imwrite(os.path.join(outpath,txt_num + f'.{format_out}'), dst)
         if not success:
-            raise Exception(f"Could not write image {txt_num + f'mask_class{cat_id}.{format_out}'}")
+            raise Exception(f"Could not write image {txt_num + f'.{format_out}'}")
         
 
 def main():
