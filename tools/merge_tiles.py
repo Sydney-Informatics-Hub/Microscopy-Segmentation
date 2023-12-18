@@ -4,7 +4,7 @@ import argparse
 import os
 from PIL import Image
 
-def merge(tile_dir, output_file, resize=None):
+def merge(tile_dir, basename, output_file, resize=None):
     """
     Merge tiles into a single image.
     Tiles need to be labeled in the format <BASENAME>_i_j.<EXT> , 
@@ -17,6 +17,8 @@ def merge(tile_dir, output_file, resize=None):
     ----------
     tile_dir : str
         Directory of tiles
+    basename : str
+        tile basename (without tile extension)
     output_file : str
         Output path + filename.
     resize : tuple
@@ -26,6 +28,9 @@ def merge(tile_dir, output_file, resize=None):
     # accepted input image formats
     accepted_formats = ["png", "jpg", "jpeg", "tif", "tiff"]
     image_list = [f for f in os.listdir(tile_dir) if f.split(".")[-1].lower() in accepted_formats]
+
+    # filter for basename by checking if first characters of filenames matches basename characaters
+    image_list = [f for f in image_list if f[:len(basename)] == basename]
 
     # check that images conform to naming convention
     image_list_ok = []
@@ -43,8 +48,8 @@ def merge(tile_dir, output_file, resize=None):
             raise ValueError(f"Tile name {fname} does not conform to naming convention: <BASENAME>_i_j.<EXT>. Skipping")
     
     # get number of tiles in x and y direction
-    x_tiles = len(x_list)
-    y_tiles = len(y_list)
+    x_tiles = len(set(x_list))
+    y_tiles = len(set(y_list))
 
     # check that no tile is missing
     if x_tiles != len(set(x_list)) or y_tiles != len(set(y_list)):
