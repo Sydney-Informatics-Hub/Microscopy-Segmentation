@@ -28,7 +28,7 @@ Output:
     .txt file with the YOLO annotations.
 
 Example:
-    python script.py --class_labels '{"person": 0, "car": 1}' --input_dir './images' --output_dir './yolo_data' --split_ratio 0.1
+    python script.py --class_labels '{"person": 0, "car": 1}' --input_dir './image_data' --output_dir './datasets' --split_ratio 0.1
 '''
 
 import os
@@ -44,7 +44,7 @@ parser = argparse.ArgumentParser(description='Your script description here.')
 # Add command line arguments
 parser.add_argument('--class_labels', type=dict, default={"fat": 0, "mit": 1}, help='Class label dictionary. Extend  as needed.')
 parser.add_argument('--input_dir', type=str, default='./anylabeling_data', help='Input directory containing images and json files')
-parser.add_argument('--output_dir', type=str, default='./data_yolo', help='Output directory')
+parser.add_argument('--output_dir', type=str, default='./datasets', help='Output directory')
 parser.add_argument('--split_ratio', type=float, default=0.2, help='Train-validation split ratio')
 
 args = parser.parse_args()
@@ -58,12 +58,16 @@ split_ratio = args.split_ratio
 os.makedirs(output_dir, exist_ok=True)
 
 # Create train and validate directories
-train_dir = os.path.join(output_dir, 'train')
+train_dir = os.path.join(output_dir, 'images/train')
+train_dir_labels = os.path.join(output_dir, 'labels/train')
 os.makedirs(train_dir, exist_ok=True)
+os.makedirs(train_dir_labels, exist_ok=True)
 
-validate_dir = os.path.join(output_dir, 'validate')
+validate_dir = os.path.join(output_dir, 'images/validate')
+validate_dir_labels = os.path.join(output_dir, 'labels/validate')
 if split_ratio > 0:
     os.makedirs(validate_dir, exist_ok=True)
+    os.makedirs(validate_dir_labels, exist_ok=True)
 
 json_files = [f for f in os.listdir(input_dir) if f.endswith('.json')]
 image_files = [f for f in os.listdir(input_dir) if f.endswith(('.tif', '.png', '.jpeg'))]
@@ -74,6 +78,7 @@ else:
     train_images = image_files
 
 # Copy all images to train and validate directories
+print("Copying images")
 for image_file in tqdm(image_files, desc="Copying images"):
     current_output_dir = train_dir if image_file in train_images else validate_dir
     shutil.copy(os.path.join(input_dir, image_file), current_output_dir)
@@ -87,9 +92,9 @@ for filename in tqdm(json_files, desc="Copying annotations"):
     image_filename = filename.replace('.json', '')
     if any(os.path.isfile(os.path.join(input_dir, image_filename + ext)) for ext in ['.tif', '.png', '.jpeg']):
         if image_filename + '.tif' in train_images or image_filename + '.png' in train_images or image_filename + '.jpeg' in train_images:
-            current_output_dir = train_dir
+            current_output_dir = train_dir_labels
         else:
-            current_output_dir = validate_dir
+            current_output_dir = validate_dir_labels
 
         with open(os.path.join(current_output_dir, filename.replace('.json', '.txt')), 'w') as out_file:
             for shape in data['shapes']:
