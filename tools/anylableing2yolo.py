@@ -98,23 +98,14 @@ for filename in tqdm(json_files, desc="Copying annotations"):
 
         with open(os.path.join(current_output_dir, filename.replace('.json', '.txt')), 'w') as out_file:
             for shape in data['shapes']:
-                x1, y1 = shape['points'][0]
-                x2, y2 = shape['points'][1]
-
-                dw = 1./data['imageWidth']
-                dh = 1./data['imageHeight']
-                w = x2 - x1
-                h = y2 - y1
-                x = x1 + (w/2)
-                y = y1 + (h/2)
-
-                x *= dw
-                w *= dw
-                y *= dh
-                h *= dh
-
                 class_label = shape['label']
-                # print(class_label, shape, print, class_labels)
-                out_file.write(f"{class_labels[class_label]} {x} {y} {w} {h}\n")
+                out_file.write(f"{class_labels[class_label]}")
+                for point in shape['points']:
+                    x = point[0]/data['imageWidth']
+                    y = point[1]/data['imageHeight']
+                    out_file.write(f" {x} {y}")
+
+                out_file.write(f"\n")
+
 
 print("Conversion and split completed successfully!")
