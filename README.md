@@ -1,5 +1,5 @@
-# PIPE-4011-EM-CV
-Electron Microscopy Segmentation - SMM Colaboration Pilot Study
+# Microscopy-Segmentation
+AI-assisted labeling tools and segmentation models for Electron Microscopy.
 
 ## Introduction
 
