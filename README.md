@@ -1,6 +1,8 @@
 # Microscopy-Segmentation
 AI-assisted labeling tools and segmentation models for Electron Microscopy.
 
+![cell_segmentation](https://github.com/Sydney-Informatics-Hub/Microscopy-Segmentation/assets/20785842/eb847420-a9d3-4ded-aa40-8dc3951e2de9)
+
 ## Introduction
 
 This project aims to explore the use of computer vision AI applications to aide in imaging data downstream processing. The project focuses on electron microscopy data and explores the use of AI to assist in segmentation and annotation of data.
